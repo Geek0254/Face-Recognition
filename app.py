@@ -1,7 +1,9 @@
 # app.py
 
+import os
 import cv2
 import numpy as np
+from flask import Flask, request, jsonify, render_template
 from mtcnn.mtcnn import MTCNN
 from keras.models import load_model
 
@@ -10,6 +12,8 @@ model = load_model('facenet_keras.h5')
 
 # Initialize MTCNN face detector
 detector = MTCNN()
+
+app = Flask(__name__)
 
 def extract_face(image, required_size=(160, 160)):
     """ Extract a single face from a given photograph """
@@ -34,6 +38,7 @@ def get_embedding(face):
 
 def save_embedding(username, embedding):
     """ Save the embedding to a file """
+    os.makedirs('./embeddings', exist_ok=True)
     np.save(f'./embeddings/{username}.npy', embedding)
 
 def load_embedding(username):
@@ -84,3 +89,24 @@ def verify_user(username, threshold=0.5):
     cap.release()
     cv2.destroyAllWindows()
     return False
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form['username']
+    capture_face_images(username)
+    return jsonify({"message": f"User {username} registered successfully."})
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    if verify_user(username):
+        return jsonify({"message": "Login successful!"})
+    else:
+        return jsonify({"message": "Login failed!"}), 401
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
